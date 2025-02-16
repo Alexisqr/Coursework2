@@ -20,10 +20,12 @@ namespace WebApplication1.Controllers
     public class PredictionController : ControllerBase
     {
         private readonly PredictionService _predictionService;
+        private readonly PredictionCatService _predictionCatService;
 
-        public PredictionController(PredictionService predictionService)
+        public PredictionController(PredictionService predictionService, PredictionCatService predictionCatServic)
         {
             _predictionService = predictionService;
+            _predictionCatService = predictionCatServic;
         }
 
        
@@ -54,6 +56,36 @@ namespace WebApplication1.Controllers
             {
                 PredictedBreed = predictedBreed,
   
+            });
+
+        }
+        [HttpPost("predictCat")]
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> PredictCat(IFormFile image)
+        {
+            if (image == null || image.Length == 0)
+                return BadRequest("Завантажте зображення.");
+
+            using var stream = new MemoryStream();
+            await image.CopyToAsync(stream);
+            var imageData = PrepareImage(stream);
+
+            var prediction = _predictionCatService.Predict(imageData);
+            // Отримання індексу найбільш ймовірного класу
+            var predictedClassIndex = prediction.dense_1.ToList().IndexOf(prediction.dense_1.Max());
+            var breeds = JsonConvert.DeserializeObject<List<string>>(System.IO.File.ReadAllText("C:\\Users\\user\\source\\repos\\WebApplication1\\WebApplication1\\Model\\breedsCat.json"));
+         
+            // Отримуємо породу за індексом
+            var predictedBreed = breeds[predictedClassIndex];
+            Console.WriteLine("All confidence scores:");
+            for (int i = 0; i < prediction.dense_1.Length; i++)
+            {
+                Console.WriteLine($"Class {i}: {prediction.dense_1[i]}");
+            }
+            return Ok(new
+            {
+                PredictedBreed = predictedBreed,
+
             });
 
         }
